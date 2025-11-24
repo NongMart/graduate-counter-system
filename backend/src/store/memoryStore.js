@@ -1,54 +1,114 @@
 // src/store/memoryStore.js
 
-// จำนวนบัณฑิตปัจจุบัน
-let currentCount = 0;
+// state ทั้งหมดเก็บใน RAM (ไว้ demo / dev)
+// ถ้าเปลี่ยนไปใช้ DB ทีหลัง ให้ย้าย logic พวกนี้ไป query DB แทน
+const state = {
+  totalGraduates: 0,       // จำนวนบัณฑิตทั้งหมด (ตั้งค่าจาก frontend)
+  currentCount: 0,         // จำนวนที่รับปริญญาแล้ว
+  events: [],              // log การนับทุกครั้ง
+  systemStatus: 'STOPPED', // 'RUNNING' | 'STOPPED'
+  startedAt: null,         // เวลาเริ่มนับ (ms)
+  stoppedAt: null          // เวลาหยุดล่าสุด (ms)
+};
 
-// Log เหตุการณ์ที่นับ (ใช้ทำกราฟ/ตรวจสอบทีหลังได้)
-const events = [];
+// ---------- ส่วนของ event / count ----------
 
-/**
- * เพิ่ม event การนับคนใหม่
- * @param {Object} event
- * @param {string} event.source - 'camera' | 'manual' | อื่น ๆ
- * @param {string} [event.cameraId]
- * @param {string} [event.direction] - 'IN' | 'OUT'
- * @param {number} [event.timestamp]
- */
 function addEvent(event) {
   const ts = event.timestamp || Date.now();
 
-  // ปรับ count ตาม direction
   if (event.direction === 'IN') {
-    currentCount += 1;
+    state.currentCount += 1;
   } else if (event.direction === 'OUT') {
-    currentCount = Math.max(0, currentCount - 1);
+    state.currentCount = Math.max(0, state.currentCount - 1);
   }
 
   const stored = {
-    id: events.length + 1,
+    id: state.events.length + 1,
     ...event,
     timestamp: ts,
-    currentCountAfterEvent: currentCount
+    currentCountAfterEvent: state.currentCount
   };
 
-  events.push(stored);
+  state.events.push(stored);
   return stored;
 }
 
 function getCurrentCount() {
-  return currentCount;
+  return state.currentCount;
 }
 
 function getEvents({ from, to } = {}) {
-  return events.filter(ev => {
+  return state.events.filter((ev) => {
     if (from && ev.timestamp < from) return false;
     if (to && ev.timestamp > to) return false;
     return true;
   });
 }
 
+// ---------- ส่วนของ config / system ----------
+
+function setTotalGraduates(total) {
+  state.totalGraduates = total;
+}
+
+function getTotalGraduates() {
+  return state.totalGraduates;
+}
+
+function setSystemStatus(status) {
+  const now = Date.now();
+
+  if (status === 'RUNNING') {
+    if (!state.startedAt) {
+      state.startedAt = now;
+    }
+    state.systemStatus = 'RUNNING';
+  } else if (status === 'STOPPED') {
+    state.systemStatus = 'STOPPED';
+    state.stoppedAt = now;
+  }
+}
+
+function getSystemStatus() {
+  return state.systemStatus;
+}
+
+function getStartedAt() {
+  return state.startedAt;
+}
+
+function getStoppedAt() {
+  return state.stoppedAt;
+}
+
+// เวลาที่ผ่านไปแล้ว (วินาที)
+function getElapsedSeconds() {
+  if (!state.startedAt) return 0;
+
+  const now = Date.now();
+  let end = now;
+
+  if (state.systemStatus === 'STOPPED' && state.stoppedAt) {
+    end = state.stoppedAt;
+  }
+
+  const diffMs = end - state.startedAt;
+  if (diffMs <= 0) return 0;
+  return Math.floor(diffMs / 1000);
+}
+
 module.exports = {
+  // events / count
   addEvent,
   getCurrentCount,
-  getEvents
+  getEvents,
+
+  // config / system
+  setTotalGraduates,
+  getTotalGraduates,
+  setSystemStatus,
+  getSystemStatus,
+  getStartedAt,
+  getStoppedAt,
+  getElapsedSeconds
 };

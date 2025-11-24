@@ -3,11 +3,12 @@ const counterService = require('../services/counter.service');
 
 /**
  * POST /api/events/entry
- * ตัวอย่าง body:
+ * body:
  * {
  *   "source": "camera",
  *   "cameraId": "CAM1",
- *   "direction": "IN"
+ *   "direction": "IN" | "OUT",
+ *   "timestamp": 1732439712345 (optional)
  * }
  */
 async function createEvent(req, res, next) {
